@@ -1,6 +1,7 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
+import { isFavorite, toggleFavorite } from '../../lib/store';
 import { DICT } from '../../lib/useDict';
 import { byId, Entry } from '../../lib/dict';
 
@@ -20,6 +21,18 @@ export default function EntryScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const e = useMemo<Entry | undefined>(() => byId(DICT, String(id)), [id]);
+  const [fav, setFav] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    isFavorite(String(id)).then((v) => { if (alive) setFav(v); });
+    return () => { alive = false; };
+  }, [id]);
+
+  async function onToggleFav() {
+    const v = await toggleFavorite(String(id));
+    setFav(v);
+  }
 
   if (!e) {
     return (
@@ -37,7 +50,12 @@ export default function EntryScreen() {
 
       {/* 見出し */}
       <View style={styles.head}>
-        <Text style={styles.arm}>{e.arm}</Text>
+        <View style={styles.headTop}>
+          <Text style={styles.arm}>{e.arm}</Text>
+          <Pressable onPress={onToggleFav} hitSlop={10} style={styles.favBtn}>
+            <Text style={[styles.favStar, fav && styles.favStarOn]}>{fav ? '★' : '☆'}</Text>
+          </Pressable>
+        </View>
         <Text style={styles.lat}>{e.lat}</Text>
         <Text style={styles.jp}>{e.jp}</Text>
         <View style={styles.tags}>
@@ -150,6 +168,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   arm: { fontSize: 34, color: '#2a2118' },
+  headTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  favBtn: { padding: 4 },
+  favStar: { fontSize: 30, color: 'rgba(160,120,40,0.45)' },
+  favStarOn: { color: GOLD },
   lat: { fontSize: 16, color: '#8a7a5c', fontStyle: 'italic', marginTop: 2 },
   jp: { fontSize: 20, color: '#3a2f1f', marginTop: 8 },
   tags: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 12 },

@@ -11,8 +11,11 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { useCallback } from 'react';
+import { useFocusEffect } from 'expo-router';
 import { DICT } from '../lib/useDict';
 import { searchWithPos, Dir, Entry } from '../lib/dict';
+import { getHistory, addHistory, clearHistory } from '../lib/store';
 
 const GOLD = '#a07828';
 const RED = '#c0392b';
@@ -24,10 +27,30 @@ export default function Index() {
   const [q, setQ] = useState('');
   const [dir, setDir] = useState<Dir>('hy2ja');
   const [pos, setPos] = useState<string>('全て');
+  const [history, setHistory] = useState<string[]>([]);
+
+  useFocusEffect(
+    useCallback(() => {
+      let alive = true;
+      getHistory().then((h) => { if (alive) setHistory(h); });
+      return () => { alive = false; };
+    }, [])
+  );
+
+  function openEntry(item: Entry) {
+    addHistory(q).then(() => getHistory().then(setHistory));
+    router.push(`/entry/${item.id}`);
+  }
 
   const results = useMemo<Entry[]>(() => {
-    if (!q.trim()) return [];
     const posArg = pos === '全て' ? null : pos;
+    if (!q.trim()) {
+      // 検索語なし: 品詞が選ばれていればその品詞の全語を字母順で表示
+      if (!posArg) return [];
+      return DICT.entries
+        .filter((e) => e.pos === posArg)
+        .sort((a, b) => a.narm.localeCompare(b.narm));
+    }
     return searchWithPos(DICT, q, posArg, dir, 80);
   }, [q, dir, pos]);
 
@@ -57,10 +80,15 @@ export default function Index() {
           </Pressable>
         </View>
 
-        {/* 文字ブラウズへの入口 */}
-        <Pressable style={styles.lettersLink} onPress={() => router.push('/letters')}>
-          <Text style={styles.lettersLinkTxt}>Ա　アルメニア文字から探す（発音つき）</Text>
-        </Pressable>
+        {/* 文字ブラウズ・お気に入りへの入口 */}
+        <View style={styles.linkRow}>
+          <Pressable style={[styles.lettersLink, { flex: 2 }]} onPress={() => router.push('/letters')}>
+            <Text style={styles.lettersLinkTxt}>Ա　文字から探す（発音つき）</Text>
+          </Pressable>
+          <Pressable style={[styles.lettersLink, { flex: 1 }]} onPress={() => router.push('/favorites')}>
+            <Text style={styles.lettersLinkTxt}>★ お気に入り</Text>
+          </Pressable>
+        </View>
 
         {/* 検索バー */}
         <View style={styles.searchWrap}>
@@ -83,7 +111,7 @@ export default function Index() {
           keyExtractor={(x) => x}
           showsHorizontalScrollIndicator={false}
           style={styles.posBar}
-          contentContainerStyle={{ paddingHorizontal: 12, gap: 8 }}
+          contentContainerStyle={{ paddingHorizontal: 12, gap: 8, alignItems: 'center', paddingVertical: 4 }}
           renderItem={({ item }) => (
             <Pressable
               style={[styles.posChip, pos === item && styles.posChipOn]}
@@ -97,28 +125,52 @@ export default function Index() {
         />
 
         {/* 結果件数 */}
-        {q.trim() !== '' && (
-          <Text style={styles.count}>{results.length} 件</Text>
+        {(q.trim() !== '' || pos !== '全て') && (
+          <Text style={styles.count}>
+            {pos !== '全て' && q.trim() === '' ? `${pos} 全 ${results.length} 語（字母順）` : `${results.length} 件`}
+          </Text>
         )}
 
         {/* 結果リスト */}
         <FlatList
           data={results}
           keyExtractor={(e) => e.id}
+          initialNumToRender={20}
+          maxToRenderPerBatch={30}
+          windowSize={10}
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={{ paddingBottom: 24 }}
           ListEmptyComponent={
             q.trim() === '' ? (
-              <Text style={styles.empty}>
-                検索語を入力してください。{'\n'}
-                アルメニア文字・ラテン転写・日本語・かなで引けます。
-              </Text>
+              <View>
+                <Text style={styles.empty}>
+                  検索語を入力してください。{'\n'}
+                  アルメニア文字・ラテン転写・日本語・かなで引けます。
+                </Text>
+                {history.length > 0 && (
+                  <View style={styles.histWrap}>
+                    <View style={styles.histHead}>
+                      <Text style={styles.histTitle}>最近の検索</Text>
+                      <Pressable onPress={() => clearHistory().then(() => setHistory([]))}>
+                        <Text style={styles.histClear}>消去</Text>
+                      </Pressable>
+                    </View>
+                    <View style={styles.histChips}>
+                      {history.map((h) => (
+                        <Pressable key={h} style={styles.histChip} onPress={() => setQ(h)}>
+                          <Text style={styles.histChipTxt}>{h}</Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                  </View>
+                )}
+              </View>
             ) : (
               <Text style={styles.empty}>見つかりませんでした。</Text>
             )
           }
           renderItem={({ item }) => (
-            <Pressable style={styles.row} onPress={() => router.push(`/entry/${item.id}`)}>
+            <Pressable style={styles.row} onPress={() => openEntry(item)}>
               <View style={{ flex: 1 }}>
                 <View style={styles.rowHead}>
                   <Text style={styles.arm}>{item.arm}</Text>
@@ -154,8 +206,6 @@ const styles = StyleSheet.create({
   dirTxtOn: { color: '#fff' },
   searchWrap: { paddingHorizontal: 12 },
   lettersLink: {
-    marginHorizontal: 12,
-    marginBottom: 10,
     paddingVertical: 10,
     borderRadius: 8,
     borderWidth: 1,
@@ -164,6 +214,17 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   lettersLinkTxt: { color: GOLD, fontSize: 13, fontWeight: '600' },
+  linkRow: { flexDirection: 'row', gap: 8, marginHorizontal: 12, marginBottom: 10 },
+  histWrap: { marginTop: 28, paddingHorizontal: 20 },
+  histHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  histTitle: { fontSize: 13, color: '#8a7a5c', fontWeight: '600' },
+  histClear: { fontSize: 12, color: RED },
+  histChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
+  histChip: {
+    borderWidth: 1, borderColor: 'rgba(160,120,40,0.35)', borderRadius: 16,
+    paddingHorizontal: 12, paddingVertical: 6, backgroundColor: '#fff',
+  },
+  histChipTxt: { color: '#5a4d38', fontSize: 13 },
   input: {
     borderWidth: 1,
     borderColor: 'rgba(160,120,40,0.3)',
@@ -174,7 +235,7 @@ const styles = StyleSheet.create({
     color: '#3a2f1f',
     backgroundColor: '#fff',
   },
-  posBar: { marginTop: 10, maxHeight: 40, flexGrow: 0 },
+  posBar: { marginTop: 10, minHeight: 44, maxHeight: 48, flexGrow: 0 },
   posChip: {
     paddingHorizontal: 12,
     paddingVertical: 6,
