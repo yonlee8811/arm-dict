@@ -80,10 +80,13 @@ export default function Index() {
           </Pressable>
         </View>
 
-        {/* 文字ブラウズ・お気に入りへの入口 */}
+        {/* 文字ブラウズ・文法・お気に入りへの入口 */}
         <View style={styles.linkRow}>
-          <Pressable style={[styles.lettersLink, { flex: 2 }]} onPress={() => router.push('/letters')}>
-            <Text style={styles.lettersLinkTxt}>Ա　文字から探す（発音つき）</Text>
+          <Pressable style={[styles.lettersLink, { flex: 1 }]} onPress={() => router.push('/letters')}>
+            <Text style={styles.lettersLinkTxt}>Ա 文字・発音</Text>
+          </Pressable>
+          <Pressable style={[styles.lettersLink, { flex: 1 }]} onPress={() => router.push('/grammar')}>
+            <Text style={styles.lettersLinkTxt}>📖 文法</Text>
           </Pressable>
           <Pressable style={[styles.lettersLink, { flex: 1 }]} onPress={() => router.push('/favorites')}>
             <Text style={styles.lettersLinkTxt}>★ お気に入り</Text>
