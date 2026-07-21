@@ -16,6 +16,7 @@ export default function RootLayout() {
       >
         <Stack.Screen name="index" options={{ title: 'アルメニア語辞書' }} />
         <Stack.Screen name="entry/[id]" options={{ title: '語の詳細' }} />
+        <Stack.Screen name="letters" options={{ title: 'アルメニア文字' }} />
       </Stack>
     </>
   );

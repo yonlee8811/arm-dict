@@ -57,6 +57,11 @@ export default function Index() {
           </Pressable>
         </View>
 
+        {/* 文字ブラウズへの入口 */}
+        <Pressable style={styles.lettersLink} onPress={() => router.push('/letters')}>
+          <Text style={styles.lettersLinkTxt}>Ա　アルメニア文字から探す（発音つき）</Text>
+        </Pressable>
+
         {/* 検索バー */}
         <View style={styles.searchWrap}>
           <TextInput
@@ -148,6 +153,17 @@ const styles = StyleSheet.create({
   dirTxt: { color: GOLD, fontSize: 13, fontWeight: '600' },
   dirTxtOn: { color: '#fff' },
   searchWrap: { paddingHorizontal: 12 },
+  lettersLink: {
+    marginHorizontal: 12,
+    marginBottom: 10,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(160,120,40,0.4)',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+  },
+  lettersLinkTxt: { color: GOLD, fontSize: 13, fontWeight: '600' },
   input: {
     borderWidth: 1,
     borderColor: 'rgba(160,120,40,0.3)',
