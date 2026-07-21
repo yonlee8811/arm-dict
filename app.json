@@ -1,0 +1,16 @@
+{
+  "expo": {
+    "name": "アルメニア語辞書",
+    "slug": "arm-dict",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "armdict",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "pink.armeniaguide.dict"
+    },
+    "plugins": ["expo-router"],
+    "assetBundlePatterns": ["assets/**/*"]
+  }
+}
