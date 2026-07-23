@@ -8,10 +8,7 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "pink.armeniaguide.dict",
-      "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
-      }
+      "bundleIdentifier": "pink.armeniaguide.dict"
     },
     "plugins": [
       "expo-router"
@@ -19,11 +16,11 @@
     "assetBundlePatterns": [
       "assets/**/*"
     ],
-    "extra": {
-      "router": {},
-      "eas": {
-        "projectId": "7ba5559d-6943-48e0-b312-003491621bd9"
-      }
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#2B2118"
     }
   }
 }
