@@ -8,9 +8,22 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "pink.armeniaguide.dict"
+      "bundleIdentifier": "pink.armeniaguide.dict",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
-    "plugins": ["expo-router"],
-    "assetBundlePatterns": ["assets/**/*"]
+    "plugins": [
+      "expo-router"
+    ],
+    "assetBundlePatterns": [
+      "assets/**/*"
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "7ba5559d-6943-48e0-b312-003491621bd9"
+      }
+    }
   }
 }

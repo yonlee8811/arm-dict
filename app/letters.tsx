@@ -105,7 +105,7 @@ export default function LettersScreen() {
               style={styles.row}
               onPress={() => router.push(`/entry/${item.id}`)}
             >
-              <View style={{ flex: 1 }}>
+              <View style={{ flex: 1, minWidth: 0 }}>
                 <View style={styles.rowHead}>
                   <Text style={styles.arm}>{item.arm}</Text>
                   <Text style={styles.lat}>{item.lat}</Text>
@@ -181,11 +181,11 @@ const styles = StyleSheet.create({
     borderBottomColor: 'rgba(160,120,40,0.1)',
     backgroundColor: '#fdfcf9',
   },
-  rowHead: { flexDirection: 'row', alignItems: 'baseline', gap: 8 },
-  arm: { fontSize: 19, color: '#2a2118' },
-  lat: { fontSize: 12, color: '#8a7a5c', fontStyle: 'italic' },
+  rowHead: { flexDirection: 'row', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' },
+  arm: { fontSize: 19, color: '#2a2118', flexShrink: 1 },
+  lat: { fontSize: 12, color: '#8a7a5c', fontStyle: 'italic', flexShrink: 1 },
   jp: { fontSize: 14, color: '#5a4d38', marginTop: 2 },
-  badges: { alignItems: 'flex-end', gap: 4 },
+  badges: { alignItems: 'flex-end', gap: 4, flexShrink: 0, marginLeft: 10 },
   level: {
     fontSize: 11, color: '#fff', backgroundColor: GOLD,
     paddingHorizontal: 6, paddingVertical: 1, borderRadius: 4, overflow: 'hidden',
