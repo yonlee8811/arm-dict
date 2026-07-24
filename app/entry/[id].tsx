@@ -4,6 +4,7 @@ import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { isFavorite, toggleFavorite } from '../../lib/store';
 import { DICT } from '../../lib/useDict';
 import { byId, Entry } from '../../lib/dict';
+import WordAudioButton from '../../components/WordAudioButton';
 
 const GOLD = '#a07828';
 const RED = '#c0392b';
@@ -52,9 +53,12 @@ export default function EntryScreen() {
       <View style={styles.head}>
         <View style={styles.headTop}>
           <Text style={styles.arm}>{e.arm}</Text>
-          <Pressable onPress={onToggleFav} hitSlop={10} style={styles.favBtn}>
-            <Text style={[styles.favStar, fav && styles.favStarOn]}>{fav ? '★' : '☆'}</Text>
-          </Pressable>
+          <View style={styles.headActions}>
+            <WordAudioButton id={e.id} />
+            <Pressable onPress={onToggleFav} hitSlop={10} style={styles.favBtn}>
+              <Text style={[styles.favStar, fav && styles.favStarOn]}>{fav ? '★' : '☆'}</Text>
+            </Pressable>
+          </View>
         </View>
         <Text style={styles.lat}>{e.lat}</Text>
         <Text style={styles.jp}>{e.jp}</Text>
@@ -167,9 +171,10 @@ const styles = StyleSheet.create({
     borderBottomColor: 'rgba(160,120,40,0.15)',
     backgroundColor: '#fff',
   },
-  arm: { fontSize: 34, color: '#2a2118', flex: 1, flexShrink: 1 },
-  headTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
-  favBtn: { padding: 4, flexShrink: 0, marginLeft: 8 },
+  arm: { fontSize: 34, color: '#2a2118' },
+  headTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  headActions: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  favBtn: { padding: 4 },
   favStar: { fontSize: 30, color: 'rgba(160,120,40,0.45)' },
   favStarOn: { color: GOLD },
   lat: { fontSize: 16, color: '#8a7a5c', fontStyle: 'italic', marginTop: 2 },
