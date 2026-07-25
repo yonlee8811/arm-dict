@@ -20,7 +20,7 @@ import { getHistory, addHistory, clearHistory } from '../lib/store';
 const GOLD = '#a07828';
 const RED = '#c0392b';
 
-const POS_LIST = ['全て', '名詞', '動詞', '形容詞', '副詞', 'フレーズ', '接続詞', '後置詞', '代名詞'];
+const POS_LIST = ['全て', '名詞', '動詞', '形容詞', '副詞', 'フレーズ', '接続詞', '後置詞', '数詞', '代名詞'];
 
 export default function Index() {
   const router = useRouter();
@@ -45,11 +45,24 @@ export default function Index() {
   const results = useMemo<Entry[]>(() => {
     const posArg = pos === '全て' ? null : pos;
     if (!q.trim()) {
-      // 検索語なし: 品詞が選ばれていればその品詞の全語を字母順で表示
+      // 検索語なし: 品詞が選ばれていればその品詞の全語を表示
       if (!posArg) return [];
-      return DICT.entries
-        .filter((e) => e.pos === posArg)
-        .sort((a, b) => a.narm.localeCompare(b.narm));
+      const list = DICT.entries.filter((e) => e.pos === posArg);
+      if (posArg === '数詞') {
+        // 数詞のみ数の大小順（jp が数値）。数値化できないものは末尾。
+        return list.sort((a, b) => {
+          const na = Number(a.jp);
+          const nb = Number(b.jp);
+          const aNum = Number.isFinite(na);
+          const bNum = Number.isFinite(nb);
+          if (aNum && bNum) return na - nb;
+          if (aNum) return -1;
+          if (bNum) return 1;
+          return 0;
+        });
+      }
+      // その他の品詞は辞書の登録順（リスト表の順）をそのまま使う
+      return list;
     }
     return searchWithPos(DICT, q, posArg, dir, 80);
   }, [q, dir, pos]);
