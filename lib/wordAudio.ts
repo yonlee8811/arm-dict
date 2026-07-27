@@ -143,7 +143,6 @@ export const WORD_AUDIO: Record<string, number> = {
   'n-0135': require('../assets/audio/n-0135.m4a'),
   'n-0136': require('../assets/audio/n-0136.m4a'),
   'n-0137': require('../assets/audio/n-0137.m4a'),
-  'n-0138': require('../assets/audio/n-0138.m4a'),
   'n-0139': require('../assets/audio/n-0139.m4a'),
   'n-0140': require('../assets/audio/n-0140.m4a'),
   'n-0141': require('../assets/audio/n-0141.m4a'),
@@ -612,6 +611,7 @@ export const WORD_AUDIO: Record<string, number> = {
   'n-0598': require('../assets/audio/n-0598.m4a'),
   'n-0599': require('../assets/audio/n-0599.m4a'),
   'n-0600': require('../assets/audio/n-0600.m4a'),
+  'n-0601': require('../assets/audio/n-0601.m4a'),
 };
 
 export function hasAudio(id: string): boolean {
