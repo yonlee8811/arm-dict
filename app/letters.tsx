@@ -53,30 +53,36 @@ export default function LettersScreen() {
     <SafeAreaView style={styles.safe} edges={['bottom']}>
       <Stack.Screen options={{ title: 'アルメニア文字' }} />
 
-      {/* 文字グリッド */}
-      <View style={styles.gridWrap}>
-        <FlatList
-          data={LETTERS}
-          keyExtractor={(l) => String(l.num)}
-          numColumns={8}
-          scrollEnabled={false}
-          renderItem={({ item }) => (
-            <Pressable
-              style={[styles.cell, sel?.num === item.num && styles.cellOn]}
-              onPress={() => pick(item)}
-            >
-              <Text style={[styles.cellTxt, sel?.num === item.num && styles.cellTxtOn]}>
-                {item.up}
-              </Text>
-            </Pressable>
-          )}
-        />
-      </View>
+      {/* 画面全体を1つのScrollViewに。横向きでもグリッドの下の詳細まで到達できる。 */}
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingBottom: 24 }}
+        keyboardShouldPersistTaps="handled"
+      >
+        {/* 文字グリッド */}
+        <View style={styles.gridWrap}>
+          <FlatList
+            data={LETTERS}
+            keyExtractor={(l) => String(l.num)}
+            numColumns={8}
+            scrollEnabled={false}
+            renderItem={({ item }) => (
+              <Pressable
+                style={[styles.cell, sel?.num === item.num && styles.cellOn]}
+                onPress={() => pick(item)}
+              >
+                <Text style={[styles.cellTxt, sel?.num === item.num && styles.cellTxtOn]}>
+                  {item.up}
+                </Text>
+              </Pressable>
+            )}
+          />
+        </View>
 
-      {sel ? (
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 24 }}>
-          {/* 文字の詳細 */}
-          <View style={styles.detail}>
+        {sel ? (
+          <View>
+            {/* 文字の詳細 */}
+            <View style={styles.detail}>
             <View style={styles.detailHead}>
               <Text style={styles.bigLetter}>
                 {sel.up}
@@ -118,12 +124,13 @@ export default function LettersScreen() {
               </View>
             </Pressable>
           ))}
-        </ScrollView>
-      ) : (
-        <Text style={styles.hint}>
-          文字をタップすると、ネイティブ話者の発音と{'\n'}その文字で始まる単語の一覧が表示されます。
-        </Text>
-      )}
+          </View>
+        ) : (
+          <Text style={styles.hint}>
+            文字をタップすると、ネイティブ話者の発音と{'\n'}その文字で始まる単語の一覧が表示されます。
+          </Text>
+        )}
+      </ScrollView>
     </SafeAreaView>
   );
 }

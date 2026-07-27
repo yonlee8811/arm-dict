@@ -1,9 +1,9 @@
 {
   "expo": {
-    "name": "アルメニア語辞書",
+    "name": "東アルメニア語辞書",
     "slug": "arm-dict",
     "version": "1.0.0",
-    "orientation": "portrait",
+    "orientation": "default",
     "scheme": "armdict",
     "userInterfaceStyle": "automatic",
     "ios": {
@@ -14,7 +14,8 @@
       }
     },
     "plugins": [
-      "expo-router"
+      "expo-router",
+      "expo-asset"
     ],
     "assetBundlePatterns": [
       "assets/**/*"

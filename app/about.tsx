@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, Pressable, StyleSheet, Linking } from 'react-native';
+import { View, Text, ScrollView, Pressable, StyleSheet, Linking, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack } from 'expo-router';
 import { DICT } from '../lib/useDict';
@@ -42,7 +42,12 @@ export default function AboutScreen() {
       <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
         {/* タイトル */}
         <View style={styles.hero}>
-          <Text style={styles.heroArm}>Հ</Text>
+          <Image
+            source={require('../assets/about-logo.png')}
+            style={styles.heroLogo}
+            resizeMode="contain"
+            accessibilityLabel="東アルメニア語辞書ロゴ"
+          />
           <Text style={styles.heroTitle}>東アルメニア語辞書</Text>
           <Text style={styles.heroSub}>ネイティブ発音つきオフライン辞書</Text>
         </View>
@@ -88,7 +93,7 @@ export default function AboutScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#fdfcf9' },
   hero: { alignItems: 'center', paddingTop: 28, paddingBottom: 20 },
-  heroArm: { fontSize: 52, color: GOLD, lineHeight: 60 },
+  heroLogo: { width: 96, height: 96, marginBottom: 2 },
   heroTitle: { fontSize: 20, color: '#2a2118', fontWeight: '600', marginTop: 4 },
   heroSub: { fontSize: 13, color: '#8a7a5c', marginTop: 4 },
 
