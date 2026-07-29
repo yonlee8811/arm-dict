@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,8 @@ import { DICT } from '../lib/useDict';
 import { Entry } from '../lib/dict';
 import { LETTERS, Letter, matchesLetter } from '../lib/alphabet';
 import { ALPHABET_AUDIO } from '../lib/alphabetAudio';
+import { isCoachDone, markCoachDone, measureRect } from '../lib/coach';
+import CoachMarks, { type CoachStep } from '../components/CoachMarks';
 
 const GOLD = '#a07828';
 const RED = '#c0392b';
@@ -41,6 +43,20 @@ export default function LettersScreen() {
     }
   }
 
+  /**
+   * 音を鳴らさずに選択だけ行う。初回説明のために先頭の文字を開くときに使う。
+   * 画面を開いた途端に音が鳴るのを避けたいが、音源の読み込みはしておかないと
+   * そのあと「発音」ボタンを押しても無音になるため、replace だけ呼ぶ。
+   */
+  function selectSilently(letter: Letter) {
+    setSel(letter);
+    try {
+      player.replace(ALPHABET_AUDIO[letter.num]);
+    } catch (e) {
+      // noop
+    }
+  }
+
   function replay() {
     if (!sel) return;
     try {
@@ -48,6 +64,74 @@ export default function LettersScreen() {
       player.play();
     } catch (e) {}
   }
+
+  /* ---------------- 初回だけの操作説明 ---------------- */
+
+  const gridRef = useRef<View>(null);
+  const playRef = useRef<View>(null);
+  const listRef = useRef<View>(null);
+  const [coachSteps, setCoachSteps] = useState<CoachStep[] | null>(null);
+  const coachStarted = useRef(false);
+
+  useEffect(() => {
+    if (coachStarted.current) return;
+    coachStarted.current = true;
+
+    let alive = true;
+    (async () => {
+      if (await isCoachDone('letters')) return;
+      if (!alive) return;
+
+      // 解説カードと単語一覧は文字を選ばないと存在しない。
+      // 矢印を向ける先を作るため、先頭の Ա を開いておく。
+      selectSilently(LETTERS[0]);
+
+      // 選択後の描画が終わってから実座標を測る
+      await new Promise((r) => setTimeout(r, 700));
+      if (!alive) return;
+
+      const [grid, play, list] = await Promise.all([
+        measureRect(gridRef),
+        measureRect(playRef),
+        measureRect(listRef),
+      ]);
+
+      const steps: CoachStep[] = [
+        {
+          key: 'grid',
+          title: '文字をタップ',
+          text: '39文字が字母順に並んでいます。文字をタップすると、その下に読み方の解説が開きます。',
+          rect: grid,
+          arrow: 'up',
+        },
+        {
+          key: 'play',
+          title: '発音を聴く',
+          text: 'このボタンを押すと、選んだ文字の発音が再生されます。ԹとՏ、ԿとՔのように息の強さだけが違う対の文字は、聴き比べると違いがつかめます。',
+          rect: play,
+          arrow: 'up',
+        },
+        {
+          key: 'list',
+          title: 'その文字で始まる語',
+          text: '解説の下には、辞書に収録されているその文字で始まる見出し語が続きます。タップすると語の詳細が開きます。',
+          // 見出し行だけだと細いので、下の数語ぶんまで含めて明るくする
+          rect: list ? { ...list, height: list.height + 120 } : null,
+          arrow: 'down',
+        },
+      ];
+
+      setCoachSteps(steps.filter((s) => s.rect != null));
+    })();
+    return () => { alive = false; };
+  }, []);
+
+  const closeCoach = useCallback(() => {
+    setCoachSteps(null);
+    markCoachDone('letters');
+  }, []);
+
+  /* ---------------------------------------------------- */
 
   return (
     <SafeAreaView style={styles.safe} edges={['bottom']}>
@@ -60,7 +144,7 @@ export default function LettersScreen() {
         keyboardShouldPersistTaps="handled"
       >
         {/* 文字グリッド */}
-        <View style={styles.gridWrap}>
+        <View ref={gridRef} collapsable={false} style={styles.gridWrap}>
           <FlatList
             data={LETTERS}
             keyExtractor={(l) => String(l.num)}
@@ -83,47 +167,49 @@ export default function LettersScreen() {
           <View>
             {/* 文字の詳細 */}
             <View style={styles.detail}>
-            <View style={styles.detailHead}>
-              <Text style={styles.bigLetter}>
-                {sel.up}
-                {sel.low !== sel.up ? ' ' + sel.low : ''}
+              <View style={styles.detailHead}>
+                <Text style={styles.bigLetter}>
+                  {sel.up}
+                  {sel.low !== sel.up ? ' ' + sel.low : ''}
+                </Text>
+                <Pressable ref={playRef} collapsable={false} style={styles.playBtn} onPress={replay}>
+                  <Text style={styles.playIcon}>🔊</Text>
+                  <Text style={styles.playTxt}>発音</Text>
+                </Pressable>
+              </View>
+              <Text style={styles.lname}>{sel.name}</Text>
+              <Text style={styles.translit}>転写: {sel.translit}</Text>
+              <Text style={styles.desc}>{sel.desc}</Text>
+              <Text style={styles.example}>
+                例: {sel.example}　{sel.exampleNote}
               </Text>
-              <Pressable style={styles.playBtn} onPress={replay}>
-                <Text style={styles.playIcon}>🔊</Text>
-                <Text style={styles.playTxt}>発音</Text>
-              </Pressable>
             </View>
-            <Text style={styles.lname}>{sel.name}</Text>
-            <Text style={styles.translit}>転写: {sel.translit}</Text>
-            <Text style={styles.desc}>{sel.desc}</Text>
-            <Text style={styles.example}>
-              例: {sel.example}　{sel.exampleNote}
-            </Text>
-          </View>
 
-          {/* この文字で始まる語 */}
-          <Text style={styles.count}>
-            {sel.up} で始まる語: {words.length} 件
-          </Text>
-          {words.map((item) => (
-            <Pressable
-              key={item.id}
-              style={styles.row}
-              onPress={() => router.push(`/entry/${item.id}`)}
-            >
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <View style={styles.rowHead}>
-                  <Text style={styles.arm}>{item.arm}</Text>
-                  <Text style={styles.lat}>{item.lat}</Text>
+            {/* この文字で始まる語 */}
+            <View ref={listRef} collapsable={false}>
+              <Text style={styles.count}>
+                {sel.up} で始まる語: {words.length} 件
+              </Text>
+            </View>
+            {words.map((item) => (
+              <Pressable
+                key={item.id}
+                style={styles.row}
+                onPress={() => router.push(`/entry/${item.id}`)}
+              >
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <View style={styles.rowHead}>
+                    <Text style={styles.arm}>{item.arm}</Text>
+                    <Text style={styles.lat}>{item.lat}</Text>
+                  </View>
+                  <Text style={styles.jp}>{item.jp}</Text>
                 </View>
-                <Text style={styles.jp}>{item.jp}</Text>
-              </View>
-              <View style={styles.badges}>
-                {item.level ? <Text style={styles.level}>{item.level}</Text> : null}
-                <Text style={styles.pos}>{item.pos}</Text>
-              </View>
-            </Pressable>
-          ))}
+                <View style={styles.badges}>
+                  {item.level ? <Text style={styles.level}>{item.level}</Text> : null}
+                  <Text style={styles.pos}>{item.pos}</Text>
+                </View>
+              </Pressable>
+            ))}
           </View>
         ) : (
           <Text style={styles.hint}>
@@ -131,6 +217,13 @@ export default function LettersScreen() {
           </Text>
         )}
       </ScrollView>
+
+      {/* 初回だけの操作説明 */}
+      <CoachMarks
+        visible={coachSteps !== null}
+        steps={coachSteps ?? []}
+        onDone={closeCoach}
+      />
     </SafeAreaView>
   );
 }

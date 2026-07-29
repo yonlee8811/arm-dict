@@ -1,13 +1,21 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { isFavorite, toggleFavorite } from '../../lib/store';
 import { DICT } from '../../lib/useDict';
 import { byId, Entry } from '../../lib/dict';
 import WordAudioButton from '../../components/WordAudioButton';
+import VariantAudioButton from '../../components/VariantAudioButton';
+import { WORD_AUDIO_VAR } from '../../lib/wordAudioVar';
+import { isCoachDone, markCoachDone, measureRect } from '../../lib/coach';
+import CoachMarks, { type CoachStep } from '../../components/CoachMarks';
 
 const GOLD = '#a07828';
 const RED = '#c0392b';
+
+/** dictionary.json にはあるが lib/dict.ts の Entry 型にはまだ無い項目 */
+type Variant = { arm: string; lat: string; label?: string };
+type EntryExtra = Entry & { var?: Variant[]; note?: string };
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -23,6 +31,37 @@ export default function EntryScreen() {
   const router = useRouter();
   const e = useMemo<Entry | undefined>(() => byId(DICT, String(id)), [id]);
   const [fav, setFav] = useState(false);
+
+  /* --- 初回だけ発音ボタンを説明する --- */
+  const audioRef = useRef<View>(null);
+  const [coachSteps, setCoachSteps] = useState<CoachStep[] | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      if (await isCoachDone('entry')) return;
+      // 画面が組み上がってから実座標を測る
+      await new Promise((r) => setTimeout(r, 500));
+      if (!alive) return;
+      const rect = await measureRect(audioRef);
+      if (!alive) return;
+      setCoachSteps([
+        {
+          key: 'audio',
+          title: '母語話者の発音',
+          text: 'このボタンを押すと、アルメニア語母語話者による見出し語の発音が再生されます。音声は本体に収録されているので、通信がなくても鳴ります。',
+          rect,
+          arrow: 'up',
+        },
+      ]);
+    })();
+    return () => { alive = false; };
+  }, []);
+
+  const closeCoach = useCallback(() => {
+    setCoachSteps(null);
+    markCoachDone('entry');
+  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -45,120 +84,164 @@ export default function EntryScreen() {
 
   const relLabel = (t: string) => (t === 'ant' ? '対義' : '類義');
 
+  const ex = e as EntryExtra;
+  const variants = ex.var ?? [];
+  const note = ex.note;
+
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
-      <Stack.Screen options={{ title: e.arm }} />
+    <>
+      <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
+        <Stack.Screen options={{ title: e.arm }} />
 
-      {/* 見出し */}
-      <View style={styles.head}>
-        <View style={styles.headTop}>
-          <Text style={styles.arm}>{e.arm}</Text>
-          <View style={styles.headActions}>
-            <WordAudioButton id={e.id} />
-            <Pressable onPress={onToggleFav} hitSlop={10} style={styles.favBtn}>
-              <Text style={[styles.favStar, fav && styles.favStarOn]}>{fav ? '★' : '☆'}</Text>
-            </Pressable>
+        {/* 見出し */}
+        <View style={styles.head}>
+          <View style={styles.headTop}>
+            <Text style={styles.arm}>{e.arm}</Text>
+            <View style={styles.headActions}>
+              {/* 初回説明で矢印を向ける対象。位置を測るため View で包む */}
+              <View ref={audioRef} collapsable={false}>
+                <WordAudioButton id={e.id} />
+              </View>
+              <Pressable onPress={onToggleFav} hitSlop={10} style={styles.favBtn}>
+                <Text style={[styles.favStar, fav && styles.favStarOn]}>{fav ? '★' : '☆'}</Text>
+              </Pressable>
+            </View>
+          </View>
+          <Text style={styles.lat}>{e.lat}</Text>
+          <Text style={styles.jp}>{e.jp}</Text>
+          <View style={styles.tags}>
+            <Text style={styles.pos}>{e.pos}</Text>
+            {e.level ? <Text style={styles.level}>{e.level}</Text> : null}
+            {e.sec ? <Text style={styles.sec}>{e.sec}</Text> : null}
           </View>
         </View>
-        <Text style={styles.lat}>{e.lat}</Text>
-        <Text style={styles.jp}>{e.jp}</Text>
-        <View style={styles.tags}>
-          <Text style={styles.pos}>{e.pos}</Text>
-          {e.level ? <Text style={styles.level}>{e.level}</Text> : null}
-          {e.sec ? <Text style={styles.sec}>{e.sec}</Text> : null}
-        </View>
-      </View>
 
-      {/* 動詞: 活用 */}
-      {e.pos === '動詞' && (e.conj || e.pres) && (
-        <Section title="活用">
-          {e.conj ? <Text style={styles.body}>活用型: {e.conj}</Text> : null}
-          {e.pres ? (
-            <Text style={styles.body}>
-              現在1人称単数: {e.pres.arm}（{e.pres.lat}）
-            </Text>
-          ) : null}
-        </Section>
-      )}
+        {/* 別の言い方（異形） */}
+        {variants.length > 0 && (
+          <Section title="別の言い方">
+            {variants.map((v, i) => {
+              const src = WORD_AUDIO_VAR[`${e.id}#${i}`];
+              return (
+                <View key={`${v.arm}-${i}`} style={styles.varRow}>
+                  <View style={styles.varMain}>
+                    <View style={styles.varHead}>
+                      <Text style={styles.varArm}>{v.arm}</Text>
+                      {v.label ? <Text style={styles.varLabel}>{v.label}</Text> : null}
+                    </View>
+                    <Text style={styles.varLat}>{v.lat}</Text>
+                  </View>
+                  {src ? <VariantAudioButton source={src} /> : null}
+                </View>
+              );
+            })}
+          </Section>
+        )}
 
-      {/* 後置詞: 支配格 */}
-      {e.pos === '後置詞' && e.case ? (
-        <Section title="支配する格">
-          <Text style={styles.body}>{e.case}</Text>
-        </Section>
-      ) : null}
+        {/* 補足 */}
+        {note ? (
+          <Section title="補足">
+            <Text style={styles.note}>{note}</Text>
+          </Section>
+        ) : null}
 
-      {/* 例文 */}
-      {e.ex.length > 0 && (
-        <Section title="例文">
-          {e.ex.map((x, i) => (
-            <View key={i} style={styles.ex}>
-              <Text style={styles.exArm}>{x.arm}</Text>
-              <Text style={styles.exLat}>{x.lat}</Text>
-              <Text style={styles.exJp}>{x.jp}</Text>
-            </View>
-          ))}
-        </Section>
-      )}
-
-      {/* 成句 */}
-      {e.idioms.length > 0 && (
-        <Section title="成句">
-          {e.idioms.map((x, i) => (
-            <View key={i} style={styles.idiom}>
-              <Text style={styles.idiomArm}>
-                {x.arm} <Text style={styles.idiomLat}>{x.lat}</Text>
+        {/* 動詞: 活用 */}
+        {e.pos === '動詞' && (e.conj || e.pres) && (
+          <Section title="活用">
+            {e.conj ? <Text style={styles.body}>活用型: {e.conj}</Text> : null}
+            {e.pres ? (
+              <Text style={styles.body}>
+                現在1人称単数: {e.pres.arm}（{e.pres.lat}）
               </Text>
-              <Text style={styles.idiomJp}>{x.jp}</Text>
+            ) : null}
+          </Section>
+        )}
+
+        {/* 後置詞: 支配格 */}
+        {e.pos === '後置詞' && e.case ? (
+          <Section title="支配する格">
+            <Text style={styles.body}>{e.case}</Text>
+          </Section>
+        ) : null}
+
+        {/* 例文 */}
+        {e.ex.length > 0 && (
+          <Section title="例文">
+            {e.ex.map((x, i) => (
+              <View key={i} style={styles.ex}>
+                <Text style={styles.exArm}>{x.arm}</Text>
+                <Text style={styles.exLat}>{x.lat}</Text>
+                <Text style={styles.exJp}>{x.jp}</Text>
+              </View>
+            ))}
+          </Section>
+        )}
+
+        {/* 成句 */}
+        {e.idioms.length > 0 && (
+          <Section title="成句">
+            {e.idioms.map((x, i) => (
+              <View key={i} style={styles.idiom}>
+                <Text style={styles.idiomArm}>
+                  {x.arm} <Text style={styles.idiomLat}>{x.lat}</Text>
+                </Text>
+                <Text style={styles.idiomJp}>{x.jp}</Text>
+              </View>
+            ))}
+          </Section>
+        )}
+
+        {/* 語根 */}
+        {e.root ? (
+          <Section title="語根">
+            <Text style={styles.body}>{e.root}</Text>
+          </Section>
+        ) : null}
+
+        {/* 派生語 */}
+        {e.derivs.length > 0 && (
+          <Section title="派生語・同語根">
+            <View style={styles.chipWrap}>
+              {e.derivs.map((did) => {
+                const t = byId(DICT, did);
+                if (!t) return null;
+                return (
+                  <Pressable key={did} style={styles.chip} onPress={() => router.push(`/entry/${did}`)}>
+                    <Text style={styles.chipArm}>{t.arm}</Text>
+                    <Text style={styles.chipJp}>{t.jp}</Text>
+                  </Pressable>
+                );
+              })}
             </View>
-          ))}
-        </Section>
-      )}
+          </Section>
+        )}
 
-      {/* 語根 */}
-      {e.root ? (
-        <Section title="語根">
-          <Text style={styles.body}>{e.root}</Text>
-        </Section>
-      ) : null}
+        {/* 関連語（類義・対義） */}
+        {e.rel.length > 0 && (
+          <Section title="関連語">
+            <View style={styles.chipWrap}>
+              {e.rel.map((r) => {
+                const t = byId(DICT, r.id);
+                if (!t) return null;
+                return (
+                  <Pressable key={r.id} style={styles.chip} onPress={() => router.push(`/entry/${r.id}`)}>
+                    <Text style={styles.relType}>{relLabel(r.t)}</Text>
+                    <Text style={styles.chipArm}>{t.arm}</Text>
+                    <Text style={styles.chipJp}>{t.jp}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </Section>
+        )}
+      </ScrollView>
 
-      {/* 派生語 */}
-      {e.derivs.length > 0 && (
-        <Section title="派生語・同語根">
-          <View style={styles.chipWrap}>
-            {e.derivs.map((did) => {
-              const t = byId(DICT, did);
-              if (!t) return null;
-              return (
-                <Pressable key={did} style={styles.chip} onPress={() => router.push(`/entry/${did}`)}>
-                  <Text style={styles.chipArm}>{t.arm}</Text>
-                  <Text style={styles.chipJp}>{t.jp}</Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        </Section>
-      )}
-
-      {/* 関連語（類義・対義） */}
-      {e.rel.length > 0 && (
-        <Section title="関連語">
-          <View style={styles.chipWrap}>
-            {e.rel.map((r) => {
-              const t = byId(DICT, r.id);
-              if (!t) return null;
-              return (
-                <Pressable key={r.id} style={styles.chip} onPress={() => router.push(`/entry/${r.id}`)}>
-                  <Text style={styles.relType}>{relLabel(r.t)}</Text>
-                  <Text style={styles.chipArm}>{t.arm}</Text>
-                  <Text style={styles.chipJp}>{t.jp}</Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        </Section>
-      )}
-    </ScrollView>
+      {/* 初回だけの操作説明 */}
+      <CoachMarks
+        visible={coachSteps !== null}
+        steps={coachSteps ?? []}
+        onDone={closeCoach}
+      />
+    </>
   );
 }
 
@@ -192,6 +275,19 @@ const styles = StyleSheet.create({
     fontSize: 12, color: '#8a7a5c', backgroundColor: 'rgba(160,120,40,0.1)',
     paddingHorizontal: 8, paddingVertical: 2, borderRadius: 5, overflow: 'hidden',
   },
+
+  /* 別の言い方 */
+  varRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 4 },
+  varMain: { flex: 1, minWidth: 0 },
+  varHead: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
+  varArm: { fontSize: 22, color: '#2a2118' },
+  varLabel: {
+    fontSize: 11, color: RED, borderWidth: 1, borderColor: 'rgba(192,57,43,0.35)',
+    paddingHorizontal: 7, paddingVertical: 1, borderRadius: 4, overflow: 'hidden',
+  },
+  varLat: { fontSize: 14, color: '#8a7a5c', fontStyle: 'italic', marginTop: 2 },
+  note: { fontSize: 14, color: '#5a4d38', lineHeight: 23 },
+
   section: { paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: 'rgba(160,120,40,0.08)' },
   sectionTitle: { fontSize: 13, color: RED, fontWeight: '700', marginBottom: 8, letterSpacing: 1 },
   body: { fontSize: 15, color: '#3a2f1f', lineHeight: 22 },

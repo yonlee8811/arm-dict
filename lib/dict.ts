@@ -5,6 +5,20 @@ export type Ex = { arm: string; lat: string; jp: string };
 export type Idiom = { arm: string; lat: string; jp: string };
 export type Rel = { id: string; t: 'ant' | 'syn' };
 
+/**
+ * 見出し語の別の言い方。
+ * 例: ութսուն（80）に対する ութանասուն（口語形）。
+ * 見出し語と同じく正規化キーを持たせてあるので、検索でも同じ扱いができる。
+ */
+export type Variant = {
+  arm: string;
+  lat: string;
+  label?: string;
+  narm: string;
+  nlat: string;
+  nlatl: string;
+};
+
 export type Entry = {
   id: string;
   arm: string;
@@ -24,6 +38,9 @@ export type Entry = {
   pres?: { arm: string; lat: string };
   // 後置詞のみ
   case?: string;
+  // 別の言い方と、その補足説明（持つ語だけ）
+  var?: Variant[];
+  note?: string;
   // 事前計算済み正規化キー
   narm: string;
   nlat: string;
@@ -90,10 +107,20 @@ function scoreField(field: string, q: string): number {
 }
 
 /**
+ * 異形へのわずかな減点。
+ * 異形の完全一致（100-5=95）は見出し語の前方一致（60）より上に来るが、
+ * 別の語の見出し完全一致（100）には譲る、という並びになる。
+ */
+const VAR_PENALTY = 5;
+
+/**
  * 検索本体。
  * dir='hy2ja': アルメニア語/ラテン転写で引く（見出し語→日本語）
  * dir='ja2hy': 日本語/かなで引く（意味→アルメニア語）
  * 入力の文字種から自動でも判定するが、明示 dir があればそれを優先。
+ *
+ * hy2ja では見出し語に加えて別の言い方（var）も対象にする。
+ * 現地で慣習的に使われる形しか知らない利用者でも引けるようにするため。
  */
 export function search(dict: Dict, raw: string, dir?: Dir, limit = 50): Entry[] {
   const q = raw.trim();
@@ -110,10 +137,23 @@ export function search(dict: Dict, raw: string, dir?: Dir, limit = 50): Entry[] 
   if (d === 'hy2ja') {
     const qa = armLow(q);
     const qn = normLatLoose(q);
+    const useArm = Boolean(qa) && hasArmenian(q);
+
     for (const e of dict.entries) {
       let s = 0;
-      if (qa && hasArmenian(q)) s = Math.max(s, scoreField(e.narm, qa));
+      if (useArm) s = Math.max(s, scoreField(e.narm, qa));
       if (qn) s = Math.max(s, scoreField(e.nlatl, qn));
+
+      // 別の言い方も見る
+      if (e.var) {
+        for (const v of e.var) {
+          let vs = 0;
+          if (useArm) vs = Math.max(vs, scoreField(v.narm, qa));
+          if (qn) vs = Math.max(vs, scoreField(v.nlatl, qn));
+          if (vs > 0) s = Math.max(s, vs - VAR_PENALTY);
+        }
+      }
+
       if (s > 0) hits.push({ entry: e, score: s - e.arm.length * 0.1 });
     }
   } else {
