@@ -12,5 +12,5 @@
  *   異形    ut'anasun  → assets/audio-var/n-0224c.m4a （口語形）
  */
 export const WORD_AUDIO_VAR: Record<string, number> = {
-    'n-0224c': require('../assets/audio/n-0224c-ut-sun.m4a'),
+  'n-0224c#0': require('../assets/audio-var/n-0224c.m4a'),
 };
